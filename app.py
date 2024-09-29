@@ -37,7 +37,7 @@ else:
     date_range = (start_date, end_date)
 
 # Fetch stock data using Alpha Vantage API
-API_KEY = 'K6IMQGA8ZU095MNO'  # Replace this with your valid Alpha Vantage API Key
+API_KEY = 'OLIILXUSMHZ09GKC'  # Replace this with your valid Alpha Vantage API Key
 ts = TimeSeries(key=API_KEY, output_format='pandas')
 
 if stock_ticker:
