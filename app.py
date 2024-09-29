@@ -1,4 +1,5 @@
 import streamlit as st
+import datetime
 from alpha_vantage.timeseries import TimeSeries
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -24,7 +25,16 @@ st.subheader("Detect insider trading patterns using sentiment analysis and finan
 # Sidebar for user inputs
 st.sidebar.header("User Configuration")
 stock_ticker = st.sidebar.text_input("Enter the stock ticker symbol (e.g., AAPL):", "AAPL")
-date_range = st.sidebar.slider("Select Date Range", value=("2023-01-01", "2023-12-31"))
+
+# Fix for date range slider
+start_date = st.sidebar.date_input("Start Date", value=datetime.date(2023, 1, 1))
+end_date = st.sidebar.date_input("End Date", value=datetime.date(2023, 12, 31))
+
+# Ensure the start date is before the end date
+if start_date > end_date:
+    st.sidebar.error("Error: End date must fall after start date.")
+else:
+    date_range = (start_date, end_date)
 
 # Fetch stock data using Alpha Vantage API
 API_KEY = 'K6IMQGA8ZU095MNO'  # Replace this with your valid Alpha Vantage API Key
@@ -32,6 +42,7 @@ ts = TimeSeries(key=API_KEY, output_format='pandas')
 
 if stock_ticker:
     stock_data, meta_data = ts.get_daily(symbol=stock_ticker, outputsize='full')
+    stock_data.index = pd.to_datetime(stock_data.index)  # Ensure index is datetime format
     stock_data = stock_data.loc[date_range[0]:date_range[1]]  # Filter by date range
     st.write(f"Stock data for {stock_ticker}")
     st.dataframe(stock_data.head())
