@@ -5,6 +5,6 @@ yfinance
 vaderSentiment
 newsapi
 matplotlib
-sklearn
+scikit-learn
 numpy
 seaborn
