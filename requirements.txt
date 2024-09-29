@@ -1,0 +1,10 @@
+pandas
+streamlit
+alpha_vantage
+yfinance
+vaderSentiment
+newsapi
+matplotlib
+sklearn
+numpy
+seaborn
