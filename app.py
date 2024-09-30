@@ -63,7 +63,7 @@ def get_stock_data(ticker, start_date, end_date):
 # Function to fetch and analyze news sentiment
 @st.cache_data
 def get_news_sentiment(ticker, start_date, end_date):
-    api_key = 'fb34a0467c79400ea91c21b1e7b9c360'  # Replace with your actual API key
+    api_key = '49434b2ab125416c88f54e1f19f6243b'  # Replace with your actual API key
     url = f'https://newsapi.org/v2/everything?q={ticker}&from={start_date}&to={end_date}&language=en&sortBy=relevancy&apiKey={api_key}'
     
     response = requests.get(url)
