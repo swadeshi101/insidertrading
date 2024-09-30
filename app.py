@@ -16,7 +16,7 @@ from plotly.subplots import make_subplots
 # Set page config
 st.set_page_config(page_title="Insider Trading Detection", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS (same as before)
+# Custom CSS
 st.markdown("""
 <style>
 .stApp {
@@ -125,8 +125,13 @@ if st.sidebar.button("Run Analysis"):
         if sentiment_data.empty:
             st.error("Failed to fetch news data. Please check your API key and try again.")
         else:
-            sentiment_data['date'] = pd.to_datetime(sentiment_data['date'])
-            sentiment_data.set_index('date', inplace=True)
+            # Correct date parsing to handle any potential errors
+            try:
+                sentiment_data['date'] = pd.to_datetime(sentiment_data['date'], format='%Y%m%d', errors='coerce')
+                sentiment_data.set_index('date', inplace=True)
+            except Exception as e:
+                st.error(f"Date parsing error: {e}")
+                st.stop()  # Stops execution if date parsing fails
             
             # Combine stock and sentiment data
             combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
@@ -184,7 +189,7 @@ if st.sidebar.button("Run Analysis"):
                     st.markdown(f"Sentiment Score: {news['sentiment_score']:.2f}")
                     st.markdown("---")
 
-# Instructions (same as before)
+# Instructions
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Instructions")
 st.sidebar.markdown("""
@@ -206,7 +211,6 @@ fun_facts = [
     "The term 'insider trading' was coined in the 1960s.",
     "The first insider trading case in the US was in 1909.",
     "Some countries allow certain forms of insider trading.",
-    "Insider trading can sometimes be detected through unusual options activity.",
-    "The SEC uses AI and machine learning to detect potential insider trading."
+    "The SEC prosecutes around 50 insider trading cases every year."
 ]
 st.sidebar.info(np.random.choice(fun_facts))
