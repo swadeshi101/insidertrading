@@ -16,7 +16,7 @@ from plotly.subplots import make_subplots
 # Set page config
 st.set_page_config(page_title="Insider Trading Detection", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS
+# Custom CSS (same as before)
 st.markdown("""
 <style>
 .stApp {
@@ -125,31 +125,20 @@ if st.sidebar.button("Run Analysis"):
         if sentiment_data.empty:
             st.error("Failed to fetch news data. Please check your API key and try again.")
         else:
-            # Correct date parsing to handle any potential errors
             try:
-                sentiment_data['date'] = pd.to_datetime(sentiment_data['date'], format='%Y%m%d', errors='coerce')
+                # Correct date parsing to handle any potential errors
+                sentiment_data['date'] = pd.to_datetime(sentiment_data['date'], format='%Y-%m-%d', errors='coerce')
                 sentiment_data.set_index('date', inplace=True)
+                
+                # Ensure both datetime indices are timezone-naive
+                stock_data.index = stock_data.index.tz_localize(None)
+                sentiment_data.index = sentiment_data.index.tz_localize(None)
+                
             except Exception as e:
                 st.error(f"Date parsing error: {e}")
                 st.stop()  # Stops execution if date parsing fails
-            
-            # Combine stock and sentiment data
-            # Correct date parsing to handle any potential errors
-try:
-    sentiment_data['date'] = pd.to_datetime(sentiment_data['date'], format='%Y%m%d', errors='coerce')
-    sentiment_data.set_index('date', inplace=True)
-    
-    # Ensure both datetime indices are timezone-naive
-    stock_data.index = stock_data.index.tz_localize(None)
-    sentiment_data.index = sentiment_data.index.tz_localize(None)
-    
-except Exception as e:
-    st.error(f"Date parsing error: {e}")
-    st.stop()  # Stops execution if date parsing fails
 
-           # Combine stock and sentiment data
-            combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
-            combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
+            # Combine stock and sentiment data
             combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
             combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
             
@@ -205,7 +194,7 @@ except Exception as e:
                     st.markdown(f"Sentiment Score: {news['sentiment_score']:.2f}")
                     st.markdown("---")
 
-# Instructions
+# Instructions (same as before)
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Instructions")
 st.sidebar.markdown("""
@@ -226,7 +215,7 @@ st.sidebar.header("💡 Did You Know?")
 fun_facts = [
     "The term 'insider trading' was coined in the 1960s.",
     "The first insider trading case in the US was in 1909.",
-    "Some countries allow certain forms of insider trading.",
-    "The SEC prosecutes around 50 insider trading cases every year."
+    "Some countries allow certain forms of insider trading if disclosed.",
+    "Martha Stewart was famously convicted of insider trading in 2004."
 ]
-st.sidebar.info(np.random.choice(fun_facts))
+st.sidebar.markdown(np.random.choice(fun_facts))
