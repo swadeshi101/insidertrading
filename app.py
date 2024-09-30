@@ -63,7 +63,7 @@ def get_stock_data(ticker, start_date, end_date):
 # Function to fetch and analyze news sentiment using Alpha Vantage
 @st.cache_data
 def get_news_sentiment(ticker):
-    api_key = 'YOUR_ALPHA_VANTAGE_API_KEY'  # Replace with your Alpha Vantage API key
+    api_key = 'X9MGIVT9R81BY4PF'  # Replace with your Alpha Vantage API key
     url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}'
     
     response = requests.get(url)
