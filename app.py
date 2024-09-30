@@ -10,7 +10,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve
 import numpy as np
 
-# Set the theme using Streamlit's configuration
+# Set Streamlit layout
 st.set_page_config(
     page_title="Insider Trading Detection App",
     page_icon="💼",
@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Customizing layout with Streamlit columns and sections
+# Title and description
 st.title("💼 Insider Trading Detection App")
 st.subheader("Detect insider trading patterns using sentiment analysis and financial data")
 
@@ -26,35 +26,44 @@ st.subheader("Detect insider trading patterns using sentiment analysis and finan
 st.sidebar.header("User Configuration")
 stock_ticker = st.sidebar.text_input("Enter the stock ticker symbol (e.g., AAPL):", "AAPL")
 
-# Fix for date range slider
+# Date input fix - date range selection
 start_date = st.sidebar.date_input("Start Date", value=datetime.date(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", value=datetime.date(2023, 12, 31))
 
-# Ensure the start date is before the end date
+# Ensure start date is before end date
 if start_date > end_date:
-    st.sidebar.error("Error: End date must fall after start date.")
+    st.sidebar.error("Error: End date must be after start date.")
 else:
     date_range = (start_date, end_date)
 
-# Fetch stock data using Alpha Vantage API
-API_KEY = 'OLIILXUSMHZ09GKC'  # Replace this with your valid Alpha Vantage API Key
+# Fetch stock data from Alpha Vantage
+API_KEY = 'K6IMQGA8ZU095MNO'  # Replace this with your valid Alpha Vantage API Key
 ts = TimeSeries(key=API_KEY, output_format='pandas')
 
-if stock_ticker:
-    stock_data, meta_data = ts.get_daily(symbol=stock_ticker, outputsize='full')
-    stock_data.index = pd.to_datetime(stock_data.index)  # Ensure index is datetime format
-    stock_data = stock_data.loc[date_range[0]:date_range[1]]  # Filter by date range
-    st.write(f"Stock data for {stock_ticker}")
-    st.dataframe(stock_data.head())
+try:
+    if stock_ticker:
+        stock_data, meta_data = ts.get_daily(symbol=stock_ticker, outputsize='full')
+        stock_data.index = pd.to_datetime(stock_data.index)  # Ensure index is datetime
+        
+        # Filter stock data by selected date range
+        stock_data_filtered = stock_data.loc[date_range[0]:date_range[1]]
+        
+        if stock_data_filtered.empty:
+            st.write(f"No stock data available for {stock_ticker} in the selected date range.")
+        else:
+            st.write(f"Stock data for {stock_ticker} from {start_date} to {end_date}")
+            st.dataframe(stock_data_filtered.head())
 
-    # Plot stock data
-    st.subheader("📈 Stock Price Visualization")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    sns.lineplot(data=stock_data['4. close'], ax=ax, color="orange")
-    ax.set_title(f"Closing Prices of {stock_ticker}", fontsize=16)
-    ax.set_ylabel("Price")
-    ax.set_xlabel("Date")
-    st.pyplot(fig)
+            # Plot stock price data
+            st.subheader("📈 Stock Price Visualization")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            sns.lineplot(data=stock_data_filtered['4. close'], ax=ax, color="orange")
+            ax.set_title(f"Closing Prices of {stock_ticker} (Filtered)", fontsize=16)
+            ax.set_ylabel("Price")
+            ax.set_xlabel("Date")
+            st.pyplot(fig)
+except Exception as e:
+    st.error(f"Error fetching stock data: {str(e)}")
 
 # Sentiment Analysis section
 st.subheader("📰 Sentiment Analysis of News Headlines")
@@ -85,14 +94,17 @@ def analyze_sentiment(news_data):
 sentiment_data = analyze_sentiment(news_data)
 sentiment_data['date'] = pd.to_datetime(sentiment_data['date'])
 
-# Visualizing the sentiment scores
+# Plot sentiment score data
 st.subheader("📊 Sentiment Score Visualization")
-fig, ax = plt.subplots(figsize=(10, 5))
-sns.lineplot(x='date', y='sentiment_score', data=sentiment_data, marker="o", color="green", ax=ax)
-ax.set_title("Sentiment Analysis Over Time", fontsize=16)
-ax.set_ylabel("Sentiment Score")
-ax.set_xlabel("Date")
-st.pyplot(fig)
+if sentiment_data.empty:
+    st.write("No sentiment data available.")
+else:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    sns.lineplot(x='date', y='sentiment_score', data=sentiment_data, marker="o", color="green", ax=ax)
+    ax.set_title("Sentiment Analysis Over Time", fontsize=16)
+    ax.set_ylabel("Sentiment Score")
+    ax.set_xlabel("Date")
+    st.pyplot(fig)
 
 # Display raw sentiment data
 st.write("Sentiment Data")
