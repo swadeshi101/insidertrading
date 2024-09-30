@@ -134,6 +134,22 @@ if st.sidebar.button("Run Analysis"):
                 st.stop()  # Stops execution if date parsing fails
             
             # Combine stock and sentiment data
+            # Correct date parsing to handle any potential errors
+try:
+    sentiment_data['date'] = pd.to_datetime(sentiment_data['date'], format='%Y%m%d', errors='coerce')
+    sentiment_data.set_index('date', inplace=True)
+    
+    # Ensure both datetime indices are timezone-naive
+    stock_data.index = stock_data.index.tz_localize(None)
+    sentiment_data.index = sentiment_data.index.tz_localize(None)
+    
+except Exception as e:
+    st.error(f"Date parsing error: {e}")
+    st.stop()  # Stops execution if date parsing fails
+
+           # Combine stock and sentiment data
+            combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
+            combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
             combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
             combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
             
