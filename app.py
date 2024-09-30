@@ -60,6 +60,15 @@ def get_stock_data(ticker, start_date, end_date):
     data = stock.history(start=start_date, end=end_date)
     return data
 
+# Function to clean and process date strings
+def clean_and_parse_date(date_str):
+    # Split the string if it contains 'T' and take only the date part
+    cleaned_date = date_str.split('T')[0] if 'T' in date_str else date_str
+    try:
+        return pd.to_datetime(cleaned_date)
+    except ValueError:
+        return pd.NaT  # Return NaT if parsing fails
+
 # Function to fetch and analyze news sentiment using Alpha Vantage
 @st.cache_data
 def get_news_sentiment(ticker):
@@ -90,7 +99,13 @@ def get_news_sentiment(ticker):
             'url': article['url']
         })
     
-    return pd.DataFrame(sentiment_scores)
+    sentiment_data = pd.DataFrame(sentiment_scores)
+    
+    # Clean and parse the dates safely
+    sentiment_data['date'] = sentiment_data['date'].apply(clean_and_parse_date)
+    sentiment_data.dropna(subset=['date'], inplace=True)  # Drop rows with invalid dates
+    
+    return sentiment_data
 
 # Function to plot interactive stock chart
 def plot_stock_chart(data):
@@ -125,7 +140,6 @@ if st.sidebar.button("Run Analysis"):
         if sentiment_data.empty:
             st.error("Failed to fetch news data. Please check your API key and try again.")
         else:
-            sentiment_data['date'] = pd.to_datetime(sentiment_data['date'])
             sentiment_data.set_index('date', inplace=True)
             
             # Combine stock and sentiment data
@@ -201,12 +215,7 @@ st.markdown("Created with ❤️ by Your Name | Data source: Yahoo Finance & Alp
 
 # Add a fun fact about insider trading
 st.sidebar.markdown("---")
-st.sidebar.header("💡 Did You Know?")
-fun_facts = [
-    "The term 'insider trading' was coined in the 1960s.",
-    "The first insider trading case in the US was in 1909.",
-    "Some countries allow certain forms of insider trading.",
-    "Insider trading can sometimes be detected through unusual options activity.",
-    "The SEC uses AI and machine learning to detect potential insider trading."
-]
-st.sidebar.info(np.random.choice(fun_facts))
+st.sidebar.header("💡 Fun Fact")
+st.sidebar.markdown("""
+Did you know? In 2001, Martha Stewart was convicted of insider trading after selling shares of a biopharmaceutical company based on non-public information!
+""")
