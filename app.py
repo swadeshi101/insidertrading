@@ -60,18 +60,23 @@ def get_stock_data(ticker, start_date, end_date):
     data = stock.history(start=start_date, end=end_date)
     return data
 
-# Function to fetch and analyze news sentiment
+# Function to fetch and analyze news sentiment using Alpha Vantage
 @st.cache_data
-def get_news_sentiment(ticker, start_date, end_date):
-    api_key = '49434b2ab125416c88f54e1f19f6243b'  # Replace with your actual API key
-    url = f'https://newsapi.org/v2/everything?q={ticker}&from={start_date}&to={end_date}&language=en&sortBy=relevancy&apiKey={api_key}'
+def get_news_sentiment(ticker):
+    api_key = 'K6IMQGA8ZU095MNO'  # Replace with your Alpha Vantage API key
+    url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}'
     
     response = requests.get(url)
     if response.status_code != 200:
         st.error(f"Error fetching news data: {response.status_code}")
         return pd.DataFrame()
     
-    articles = response.json()['articles']
+    data = response.json()
+    if 'feed' not in data:
+        st.error("No news data available for the given ticker.")
+        return pd.DataFrame()
+    
+    articles = data['feed']
     
     analyzer = SentimentIntensityAnalyzer()
     sentiment_scores = []
@@ -79,7 +84,7 @@ def get_news_sentiment(ticker, start_date, end_date):
     for article in articles:
         sentiment = analyzer.polarity_scores(article['title'])
         sentiment_scores.append({
-            'date': article['publishedAt'][:10],
+            'date': article['time_published'][:10],
             'sentiment_score': sentiment['compound'],
             'title': article['title'],
             'url': article['url']
@@ -116,7 +121,7 @@ if st.sidebar.button("Run Analysis"):
         stock_data = get_stock_data(ticker, start_date, end_date)
         
         # Get news sentiment
-        sentiment_data = get_news_sentiment(ticker, str(start_date), str(end_date))
+        sentiment_data = get_news_sentiment(ticker)
         if sentiment_data.empty:
             st.error("Failed to fetch news data. Please check your API key and try again.")
         else:
@@ -192,7 +197,7 @@ st.sidebar.markdown("""
 
 # Footer
 st.markdown("---")
-st.markdown("Created with ❤️ by Your Name | Data source: Yahoo Finance & NewsAPI")
+st.markdown("Created with ❤️ by Your Name | Data source: Yahoo Finance & Alpha Vantage")
 
 # Add a fun fact about insider trading
 st.sidebar.markdown("---")
