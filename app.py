@@ -63,7 +63,7 @@ def get_stock_data(ticker, start_date, end_date):
 # Function to fetch and analyze news sentiment using Alpha Vantage
 @st.cache_data
 def get_news_sentiment(ticker):
-    api_key = 'K6IMQGA8ZU095MNO'  # Replace with your Alpha Vantage API key
+    api_key = 'X9MGIVT9R81BY4PF'  # Replace with your Alpha Vantage API key
     url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}'
     
     response = requests.get(url)
@@ -142,6 +142,10 @@ if st.sidebar.button("Run Analysis"):
             combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
             combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
             
+            # Handle missing values (either fill them or drop rows with NaN)
+            imputer = SimpleImputer(strategy='mean')  # You can change to 'median' or 'most_frequent'
+            combined_data[['Close', 'sentiment_score']] = imputer.fit_transform(combined_data[['Close', 'sentiment_score']])
+            
             # Feature engineering
             combined_data['rolling_mean'] = combined_data['sentiment_score'].rolling(window=sentiment_window).mean()
             combined_data['rolling_std'] = combined_data['sentiment_score'].rolling(window=sentiment_window).std()
@@ -198,24 +202,15 @@ if st.sidebar.button("Run Analysis"):
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Instructions")
 st.sidebar.markdown("""
-1. Enter a stock ticker symbol (e.g., AAPL for Apple Inc.)
-2. Select the date range for analysis
-3. Adjust advanced options if needed
-4. Click 'Run Analysis' to see the results
-5. Explore the different tabs for detailed insights
+1. Enter a valid stock ticker.
+2. Set the analysis time range.
+3. Adjust advanced options for anomaly detection and sentiment analysis.
+4. Click 'Run Analysis' to see the results.
 """)
 
-# Footer
-st.markdown("---")
-st.markdown("Created with ❤️ by Your Name | Data source: Yahoo Finance & Alpha Vantage")
-
-# Add a fun fact about insider trading
-st.sidebar.markdown("---")
-st.sidebar.header("💡 Did You Know?")
+# Sidebar fun facts (same as before)
 fun_facts = [
-    "The term 'insider trading' was coined in the 1960s.",
-    "The first insider trading case in the US was in 1909.",
-    "Some countries allow certain forms of insider trading if disclosed.",
+    "Insider trading is illegal if the material information is still non-public.",
     "Martha Stewart was famously convicted of insider trading in 2004."
 ]
 st.sidebar.markdown(np.random.choice(fun_facts))
