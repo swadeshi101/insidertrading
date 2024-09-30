@@ -72,7 +72,7 @@ def clean_and_parse_date(date_str):
 # Function to fetch and analyze news sentiment using Alpha Vantage
 @st.cache_data
 def get_news_sentiment(ticker):
-    api_key = 'X9MGIVT9R81BY4PF'  # Replace with your Alpha Vantage API key
+    api_key = 'YOUR_ALPHA_VANTAGE_API_KEY'  # Replace with your Alpha Vantage API key
     url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}'
     
     response = requests.get(url)
@@ -121,101 +121,59 @@ def plot_stock_chart(data):
     return fig
 
 # Function to plot sentiment and anomalies
-def plot_sentiment_anomalies(data):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data.index, y=data['sentiment_score'], name='Sentiment Score'))
-    anomalies = data[data['anomaly'] == -1]
-    fig.add_trace(go.Scatter(x=anomalies.index, y=anomalies['sentiment_score'], mode='markers', name='Anomalies', marker=dict(color='red', size=10)))
-    fig.update_layout(title="Sentiment Score with Anomalies", xaxis_title="Date", yaxis_title="Sentiment Score")
-    return fig
+# Function to plot sentiment and anomalies
+def plot_sentiment_and_anomalies(combined_data):
+    fig, ax1 = plt.subplots(figsize=(14, 8))
 
-# Main app logic
-if st.sidebar.button("Run Analysis"):
-    with st.spinner("Fetching and analyzing data..."):
-        # Get stock data
-        stock_data = get_stock_data(ticker, start_date, end_date)
-        
-        # Get news sentiment
-        sentiment_data = get_news_sentiment(ticker)
-        if sentiment_data.empty:
-            st.error("Failed to fetch news data. Please check your API key and try again.")
-        else:
-            sentiment_data.set_index('date', inplace=True)
-            
-            # Combine stock and sentiment data
-            combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
-            combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
-            
-            # Feature engineering
-            combined_data['rolling_mean'] = combined_data['sentiment_score'].rolling(window=sentiment_window).mean()
-            combined_data['rolling_std'] = combined_data['sentiment_score'].rolling(window=sentiment_window).std()
-            
-            # Anomaly detection
-            iso_forest = IsolationForest(contamination=anomaly_threshold, random_state=42)
-            combined_data['anomaly'] = iso_forest.fit_predict(combined_data[['Close', 'sentiment_score']])
-            
-            # Create tabs for different sections
-            tab1, tab2, tab3, tab4 = st.tabs(["📈 Stock Analysis", "😊 Sentiment Analysis", "🔍 Anomaly Detection", "📰 News Headlines"])
-            
-            with tab1:
-                st.header("📈 Stock Price Analysis")
-                st.plotly_chart(plot_stock_chart(stock_data), use_container_width=True)
-                
-                # Display key statistics
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Current Price", f"${stock_data['Close'].iloc[-1]:.2f}", f"{stock_data['Close'].pct_change().iloc[-1]:.2%}")
-                col2.metric("Volume", f"{stock_data['Volume'].iloc[-1]:,}")
-                col3.metric("52-Week High", f"${stock_data['Close'].rolling(window=252).max().iloc[-1]:.2f}")
-            
-            with tab2:
-                st.header("😊 Sentiment Analysis")
-                st.plotly_chart(plot_sentiment_anomalies(combined_data), use_container_width=True)
-                
-                # Sentiment distribution
-                st.subheader("Sentiment Distribution")
-                fig, ax = plt.subplots()
-                sns.histplot(combined_data['sentiment_score'], kde=True, ax=ax)
-                st.pyplot(fig)
-            
-            with tab3:
-                st.header("🔍 Anomaly Detection")
-                
-                # Display anomalies
-                anomalies = combined_data[combined_data['anomaly'] == -1]
-                st.dataframe(anomalies[['Close', 'sentiment_score']])
-                
-                # Correlation heatmap
-                st.subheader("Feature Correlation")
-                corr_matrix = combined_data[['Close', 'sentiment_score', 'rolling_mean', 'rolling_std']].corr()
-                fig, ax = plt.subplots(figsize=(8, 6))
-                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax)
-                st.pyplot(fig)
-            
-            with tab4:
-                st.header("📰 Recent News Headlines")
-                for _, news in sentiment_data.sort_index(ascending=False).head(10).iterrows():
-                    st.markdown(f"**[{news['title']}]({news['url']})**")
-                    st.markdown(f"Sentiment Score: {news['sentiment_score']:.2f}")
-                    st.markdown("---")
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Stock Price', color='tab:blue')
+    ax1.plot(combined_data.index, combined_data['Close'], color='tab:blue', label='Stock Price')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-# Instructions (same as before)
-st.sidebar.markdown("---")
-st.sidebar.header("📝 Instructions")
-st.sidebar.markdown("""
-1. Enter a stock ticker symbol (e.g., AAPL for Apple Inc.)
-2. Select the date range for analysis
-3. Adjust advanced options if needed
-4. Click 'Run Analysis' to see the results
-5. Explore the different tabs for detailed insights
-""")
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2.set_ylabel('Sentiment Score', color='tab:red')  # we already handled the x-label with ax1
+    ax2.plot(combined_data.index, combined_data['sentiment_score'], color='tab:red', label='Sentiment Score')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
 
-# Footer
-st.markdown("---")
-st.markdown("Created with ❤️ by Your Name | Data source: Yahoo Finance & Alpha Vantage")
+    # Highlight anomalies
+    anomalies = combined_data[combined_data['anomaly'] == -1]
+    ax1.scatter(anomalies.index, anomalies['Close'], color='orange', label='Anomaly', zorder=5)
 
-# Add a fun fact about insider trading
-st.sidebar.markdown("---")
-st.sidebar.header("💡 Fun Fact")
-st.sidebar.markdown("""
-Did you know? In 2001, Martha Stewart was convicted of insider trading after selling shares of a biopharmaceutical company based on non-public information!
-""")
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    plt.title(f'{ticker} Stock Price and Sentiment with Anomalies')
+    plt.show()
+
+# Function for anomaly detection
+def detect_anomalies(data, threshold=0.1):
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(data[['Close', 'Volume']])
+    
+    isolation_forest = IsolationForest(contamination=threshold)
+    data['anomaly'] = isolation_forest.fit_predict(scaled_data)
+    
+    return data
+
+# Main function
+if ticker:
+    stock_data = get_stock_data(ticker, start_date, end_date)
+    sentiment_data = get_news_sentiment(ticker)
+
+    if not sentiment_data.empty:
+        # Convert stock and sentiment data to the same timezone format (tz-naive)
+        stock_data.index = stock_data.index.tz_localize(None)
+        sentiment_data['date'] = sentiment_data['date'].dt.tz_localize(None)
+
+        # Combine stock data and sentiment data on the date
+        combined_data = stock_data.join(sentiment_data.set_index('date')['sentiment_score'], how='left')
+        combined_data['sentiment_score'].fillna(method='ffill', inplace=True)  # Fill missing sentiment values
+        combined_data = detect_anomalies(combined_data, anomaly_threshold)
+
+        # Plot stock chart
+        st.plotly_chart(plot_stock_chart(stock_data), use_container_width=True)
+
+        # Plot sentiment and anomalies
+        st.pyplot(plot_sentiment_and_anomalies(combined_data))
+    else:
+        st.error("No sentiment data available to plot.")
+else:
+    st.warning("Please enter a valid stock ticker.")
