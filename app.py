@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from newsapi import NewsApiClient
+import requests
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
@@ -16,7 +16,7 @@ from plotly.subplots import make_subplots
 # Set page config
 st.set_page_config(page_title="Insider Trading Detection", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS to make the app more colorful and engaging
+# Custom CSS (same as before)
 st.markdown("""
 <style>
 .stApp {
@@ -63,18 +63,20 @@ def get_stock_data(ticker, start_date, end_date):
 # Function to fetch and analyze news sentiment
 @st.cache_data
 def get_news_sentiment(ticker, start_date, end_date):
-    newsapi = NewsApiClient(api_key='fb34a0467c79400ea91c21b1e7b9c360')  # Replace with your actual API key
-    articles = newsapi.get_everything(q=ticker,
-                                      from_param=start_date,
-                                      to=end_date,
-                                      language='en',
-                                      sort_by='relevancy',
-                                      page_size=100)
+    api_key = 'fb34a0467c79400ea91c21b1e7b9c360'  # Replace with your actual API key
+    url = f'https://newsapi.org/v2/everything?q={ticker}&from={start_date}&to={end_date}&language=en&sortBy=relevancy&apiKey={api_key}'
+    
+    response = requests.get(url)
+    if response.status_code != 200:
+        st.error(f"Error fetching news data: {response.status_code}")
+        return pd.DataFrame()
+    
+    articles = response.json()['articles']
     
     analyzer = SentimentIntensityAnalyzer()
     sentiment_scores = []
     
-    for article in articles['articles']:
+    for article in articles:
         sentiment = analyzer.polarity_scores(article['title'])
         sentiment_scores.append({
             'date': article['publishedAt'][:10],
@@ -115,66 +117,69 @@ if st.sidebar.button("Run Analysis"):
         
         # Get news sentiment
         sentiment_data = get_news_sentiment(ticker, str(start_date), str(end_date))
-        sentiment_data['date'] = pd.to_datetime(sentiment_data['date'])
-        sentiment_data.set_index('date', inplace=True)
-        
-        # Combine stock and sentiment data
-        combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
-        combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
-        
-        # Feature engineering
-        combined_data['rolling_mean'] = combined_data['sentiment_score'].rolling(window=sentiment_window).mean()
-        combined_data['rolling_std'] = combined_data['sentiment_score'].rolling(window=sentiment_window).std()
-        
-        # Anomaly detection
-        iso_forest = IsolationForest(contamination=anomaly_threshold, random_state=42)
-        combined_data['anomaly'] = iso_forest.fit_predict(combined_data[['Close', 'sentiment_score']])
-        
-        # Create tabs for different sections
-        tab1, tab2, tab3, tab4 = st.tabs(["📈 Stock Analysis", "😊 Sentiment Analysis", "🔍 Anomaly Detection", "📰 News Headlines"])
-        
-        with tab1:
-            st.header("📈 Stock Price Analysis")
-            st.plotly_chart(plot_stock_chart(stock_data), use_container_width=True)
+        if sentiment_data.empty:
+            st.error("Failed to fetch news data. Please check your API key and try again.")
+        else:
+            sentiment_data['date'] = pd.to_datetime(sentiment_data['date'])
+            sentiment_data.set_index('date', inplace=True)
             
-            # Display key statistics
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Current Price", f"${stock_data['Close'].iloc[-1]:.2f}", f"{stock_data['Close'].pct_change().iloc[-1]:.2%}")
-            col2.metric("Volume", f"{stock_data['Volume'].iloc[-1]:,}")
-            col3.metric("52-Week High", f"${stock_data['Close'].rolling(window=252).max().iloc[-1]:.2f}")
-        
-        with tab2:
-            st.header("😊 Sentiment Analysis")
-            st.plotly_chart(plot_sentiment_anomalies(combined_data), use_container_width=True)
+            # Combine stock and sentiment data
+            combined_data = stock_data.join(sentiment_data['sentiment_score'], how='left')
+            combined_data['sentiment_score'].fillna(method='ffill', inplace=True)
             
-            # Sentiment distribution
-            st.subheader("Sentiment Distribution")
-            fig, ax = plt.subplots()
-            sns.histplot(combined_data['sentiment_score'], kde=True, ax=ax)
-            st.pyplot(fig)
-        
-        with tab3:
-            st.header("🔍 Anomaly Detection")
+            # Feature engineering
+            combined_data['rolling_mean'] = combined_data['sentiment_score'].rolling(window=sentiment_window).mean()
+            combined_data['rolling_std'] = combined_data['sentiment_score'].rolling(window=sentiment_window).std()
             
-            # Display anomalies
-            anomalies = combined_data[combined_data['anomaly'] == -1]
-            st.dataframe(anomalies[['Close', 'sentiment_score']])
+            # Anomaly detection
+            iso_forest = IsolationForest(contamination=anomaly_threshold, random_state=42)
+            combined_data['anomaly'] = iso_forest.fit_predict(combined_data[['Close', 'sentiment_score']])
             
-            # Correlation heatmap
-            st.subheader("Feature Correlation")
-            corr_matrix = combined_data[['Close', 'sentiment_score', 'rolling_mean', 'rolling_std']].corr()
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax)
-            st.pyplot(fig)
-        
-        with tab4:
-            st.header("📰 Recent News Headlines")
-            for _, news in sentiment_data.sort_index(ascending=False).head(10).iterrows():
-                st.markdown(f"**[{news['title']}]({news['url']})**")
-                st.markdown(f"Sentiment Score: {news['sentiment_score']:.2f}")
-                st.markdown("---")
+            # Create tabs for different sections
+            tab1, tab2, tab3, tab4 = st.tabs(["📈 Stock Analysis", "😊 Sentiment Analysis", "🔍 Anomaly Detection", "📰 News Headlines"])
+            
+            with tab1:
+                st.header("📈 Stock Price Analysis")
+                st.plotly_chart(plot_stock_chart(stock_data), use_container_width=True)
+                
+                # Display key statistics
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Current Price", f"${stock_data['Close'].iloc[-1]:.2f}", f"{stock_data['Close'].pct_change().iloc[-1]:.2%}")
+                col2.metric("Volume", f"{stock_data['Volume'].iloc[-1]:,}")
+                col3.metric("52-Week High", f"${stock_data['Close'].rolling(window=252).max().iloc[-1]:.2f}")
+            
+            with tab2:
+                st.header("😊 Sentiment Analysis")
+                st.plotly_chart(plot_sentiment_anomalies(combined_data), use_container_width=True)
+                
+                # Sentiment distribution
+                st.subheader("Sentiment Distribution")
+                fig, ax = plt.subplots()
+                sns.histplot(combined_data['sentiment_score'], kde=True, ax=ax)
+                st.pyplot(fig)
+            
+            with tab3:
+                st.header("🔍 Anomaly Detection")
+                
+                # Display anomalies
+                anomalies = combined_data[combined_data['anomaly'] == -1]
+                st.dataframe(anomalies[['Close', 'sentiment_score']])
+                
+                # Correlation heatmap
+                st.subheader("Feature Correlation")
+                corr_matrix = combined_data[['Close', 'sentiment_score', 'rolling_mean', 'rolling_std']].corr()
+                fig, ax = plt.subplots(figsize=(8, 6))
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax)
+                st.pyplot(fig)
+            
+            with tab4:
+                st.header("📰 Recent News Headlines")
+                for _, news in sentiment_data.sort_index(ascending=False).head(10).iterrows():
+                    st.markdown(f"**[{news['title']}]({news['url']})**")
+                    st.markdown(f"Sentiment Score: {news['sentiment_score']:.2f}")
+                    st.markdown("---")
 
-# Instructions
+# Instructions (same as before)
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Instructions")
 st.sidebar.markdown("""
